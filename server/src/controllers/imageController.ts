@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
+import axios from "axios";
+import FormData from "form-data";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const analyzeImage = async (req: Request, res: Response) => {
 	const image = req.file;
@@ -9,15 +14,29 @@ export const analyzeImage = async (req: Request, res: Response) => {
 		return res.status(400).json({ error: "No image uploaded" });
 	}
 
-	// You will replace this with real AI model logic
-	const dummyPrediction = {
-		year: "2021",
-		model: "Trek Domane",
-		groupset: "Shimano Ultegra",
-	};
+    try {
+        const form = new FormData();
+        form.append("file", fs.createReadStream(image.path));
 
-	// Delete temp file (cleanup)
+        const hfResponse = await axios.post(
+            "https://api-inference.huggingface.co/models/google/vit-base-patch16-224",
+            form,
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+                    ...form.getHeaders(),
+                },
+            }
+        );
+    
+
+    const predictions = hfResponse.data;
+
 	fs.unlinkSync(path.resolve(image.path));
 
-	return res.json(dummyPrediction);
-};
+    res.json(predictions.slice(0,2));
+
+} catch (err: any) {
+    console.error("AI prediction error:", err.message);
+    res.status(500).json({ error: "Failed to analyze image" });
+}
