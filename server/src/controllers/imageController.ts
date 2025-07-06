@@ -2,41 +2,50 @@ import { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import axios from "axios";
-import FormData from "form-data";
+import mime from "mime-types"; // npm install mime-types
 import dotenv from "dotenv";
 
 dotenv.config();
 
-export const analyzeImage = async (req: Request, res: Response) => {
+export const analyzeImage = async (
+	req: Request,
+	res: Response
+): Promise<void> => {
 	const image = req.file;
 
 	if (!image) {
-		return res.status(400).json({ error: "No image uploaded" });
+		res.status(400).json({ error: "No image uploaded" });
+		return;
 	}
 
-    try {
-        const form = new FormData();
-        form.append("file", fs.createReadStream(image.path));
+	try {
+		// Read the file buffer
+		const imageBuffer = fs.readFileSync(image.path);
 
-        const hfResponse = await axios.post(
-            "https://api-inference.huggingface.co/models/google/vit-base-patch16-224",
-            form,
-            {
-                headers: {
-                    Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-                    ...form.getHeaders(),
-                },
-            }
-        );
-    
+		// Determine mime type based on file extension
+		const mimeType = mime.lookup(image.path) || "application/octet-stream";
 
-    const predictions = hfResponse.data;
+		const hfResponse = await axios.post(
+			"https://api-inference.huggingface.co/models/google/vit-base-patch16-224",
+			imageBuffer,
+			{
+				headers: {
+					Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+					"Content-Type": mimeType,
+				},
+			}
+		);
 
-	fs.unlinkSync(path.resolve(image.path));
+		fs.unlinkSync(image.path); // clean up
 
-    res.json(predictions.slice(0,2));
-
-} catch (err: any) {
-    console.error("AI prediction error:", err.message);
-    res.status(500).json({ error: "Failed to analyze image" });
-}
+		res.json(hfResponse.data.slice(0, 2));
+	} catch (err: any) {
+		if (err.response) {
+			console.error("Hugging Face API error status:", err.response.status);
+			console.error("Hugging Face API error data:", err.response.data);
+		} else {
+			console.error("Error:", err.message);
+		}
+		res.status(500).json({ error: "Failed to analyze image" });
+	}
+};
