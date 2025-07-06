@@ -1,9 +1,8 @@
-import express from "express";
-import multer from "multer";
+import { Router } from "express";
+import { upload } from "../middleware/upload";
 import { analyzeImage } from "../controllers/imageController";
 
-const router = express.Router();
-const upload = multer({ dest: "uploads/" }); // Save images temporarily
+const router = Router();
 
 router.post("/upload", upload.single("image"), analyzeImage);
 

@@ -1,22 +1,18 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import uploadRoute from "./routes/upload";
-
-dotenv.config();
+import path from "path";
 
 const app = express();
-const PORT = process.env.PORT || 4000;
 
 app.use(cors());
+
+app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
 app.use(express.json());
 
 app.use("/api", uploadRoute);
 
-app.get("/", (_req, res) => {
-	res.send("Bike AI backend is running!");
-});
-
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
 	console.log(`Server listening on http://localhost:${PORT}`);
 });
