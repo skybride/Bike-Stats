@@ -1,8 +1,7 @@
+// server/src/controllers/imageController.ts
 import { Request, Response } from "express";
 import fs from "fs";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { predictWithClarifaiBase64 } from "../utils/clarifaiClient";
 
 export const analyzeImage = async (
 	req: Request,
@@ -22,17 +21,18 @@ export const analyzeImage = async (
 		const clarifaiResponse = await predictWithClarifaiBase64(base64Image);
 
 		const predictions =
-			clarifaiResponse.outputs?.[0]?.data?.concepts?.slice(0, 3) || [];
+			clarifaiResponse.data.outputs?.[0]?.data?.concepts?.slice(0, 3) || [];
 
 		fs.unlinkSync(image.path);
 		res.json(predictions);
 	} catch (err: any) {
 		if (err.response) {
-			console.error("Hugging Face API error status:", err.response.status);
-			console.error("Hugging Face API error data:", err.response.data);
+			console.error("API error status:", err.response.status);
+			console.error("error data:", err.response.data);
+			res.status(err.response.status).json(err.response.data);
 		} else {
 			console.error("Error:", err.message);
+			res.status(500).json({ error: "Failed to analyze image" });
 		}
-		res.status(500).json({ error: "Failed to analyze image" });
 	}
 };
